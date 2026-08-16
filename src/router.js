@@ -19,6 +19,12 @@ export function createRouter(onRoute) {
 
     timer = setTimeout(() => {
       const root = getRoot();
+
+      if (!root) {
+        schedule(`${reason}:wait-root`);
+        return;
+      }
+
       const href = location.href;
       const page = getPageId();
 
@@ -37,7 +43,7 @@ export function createRouter(onRoute) {
         root,
         reason,
       });
-    }, 140);
+    }, 120);
   }
 
   function routeChange(reason) {
@@ -46,9 +52,9 @@ export function createRouter(onRoute) {
     schedule(reason);
 
     /*
-      ikas yeni DOM'u URL değişiminden
-      biraz sonra basarsa ikinci güvenlik kontrolü.
-    */
+     * ikas URL'yi değiştirip yeni DOM'u
+     * biraz sonra oluşturursa tekrar kontrol et.
+     */
     setTimeout(() => {
       if (
         location.href !== mountedHref ||
@@ -59,31 +65,32 @@ export function createRouter(onRoute) {
     }, 350);
   }
 
-  ['pushState', 'replaceState'].forEach((method) => {
-    const original = history[method];
+  ['pushState', 'replaceState']
+    .forEach((method) => {
+      const original = history[method];
 
-    history[method] = function (...args) {
-      const result = original.apply(this, args);
+      history[method] = function (...args) {
+        const result =
+          original.apply(this, args);
 
-      routeChange(method);
+        routeChange(method);
 
-      return result;
-    };
-  });
+        return result;
+      };
+    });
 
-  window.addEventListener('popstate', () => {
-    routeChange('popstate');
-  });
+  window.addEventListener(
+    'popstate',
+    () => {
+      routeChange('popstate');
+    }
+  );
 
-  /*
-    Aynı domain içindeki linkleri de izliyoruz.
-    SPA router'ın nasıl çalıştığından bağımsız
-    ekstra güvenlik sağlar.
-  */
   document.addEventListener(
     'click',
     (event) => {
-      const link = event.target.closest?.('a[href]');
+      const link =
+        event.target.closest?.('a[href]');
 
       if (!link) return;
       if (link.target === '_blank') return;
@@ -95,8 +102,17 @@ export function createRouter(onRoute) {
           location.href
         );
 
-        if (url.origin !== location.origin) return;
-        if (url.href === location.href) return;
+        if (
+          url.origin !== location.origin
+        ) {
+          return;
+        }
+
+        if (
+          url.href === location.href
+        ) {
+          return;
+        }
 
         routePending = true;
 
@@ -107,34 +123,34 @@ export function createRouter(onRoute) {
           ) {
             schedule('link');
           }
-        }, 80);
+        }, 100);
       } catch {
-        // geçersiz URL ise görmezden gel
+        /* ignore */
       }
     },
     true
   );
 
-  /*
-    Sadece DOM node ekleme/çıkarma izleniyor.
-    GSAP'ın style değişiklikleri bunu tetiklemez.
-  */
-  const observer = new MutationObserver(() => {
-    const root = getRoot();
+  const observer =
+    new MutationObserver(() => {
+      const root = getRoot();
 
-    if (
-      routePending ||
-      location.href !== mountedHref ||
-      root !== mountedRoot
-    ) {
-      schedule('dom');
+      if (
+        routePending ||
+        location.href !== mountedHref ||
+        root !== mountedRoot
+      ) {
+        schedule('dom');
+      }
+    });
+
+  observer.observe(
+    document.documentElement,
+    {
+      childList: true,
+      subtree: true,
     }
-  });
-
-  observer.observe(document.body, {
-    childList: true,
-    subtree: true,
-  });
+  );
 
   schedule('initial');
 

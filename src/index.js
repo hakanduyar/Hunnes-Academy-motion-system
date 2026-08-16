@@ -26,6 +26,7 @@ const pages = {
 let context = null;
 let pageCleanup = null;
 let currentPage = null;
+let destroyRouter = null;
 
 function cleanup() {
   if (typeof pageCleanup === 'function') {
@@ -82,23 +83,45 @@ function mountRoute({
   refresh();
 }
 
-createRouter(mountRoute);
+function start() {
+  if (destroyRouter) return;
 
-window.HunnesMotion = {
-  version: CONFIG.version,
+  destroyRouter =
+    createRouter(mountRoute);
 
-  get page() {
-    return currentPage;
-  },
+  window.HunnesMotion = {
+    version: CONFIG.version,
 
-  refresh,
+    get page() {
+      return currentPage;
+    },
 
-  debug() {
-    return {
-      version: CONFIG.version,
-      page: currentPage,
-      path: location.pathname,
-      triggers: ScrollTrigger.getAll().length,
-    };
-  },
-};
+    refresh,
+
+    debug() {
+      return {
+        version: CONFIG.version,
+        page: currentPage,
+        path: location.pathname,
+        triggers:
+          ScrollTrigger.getAll().length,
+      };
+    },
+  };
+
+  log('system ready');
+}
+
+/*
+ * Kritik:
+ * document.body oluşmadan router başlatma.
+ */
+if (document.readyState === 'loading') {
+  document.addEventListener(
+    'DOMContentLoaded',
+    start,
+    { once: true }
+  );
+} else {
+  start();
+}
