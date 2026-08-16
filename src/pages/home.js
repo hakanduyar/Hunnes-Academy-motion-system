@@ -31,7 +31,7 @@ import {
 function findAncestor(
   element,
   test,
-  max = 7
+  max = 8
 ) {
   let current = element;
 
@@ -56,12 +56,6 @@ export function mountHome({
   root,
   gsap,
 }) {
-  /*
-   * ========================================
-   * DEVICE / ACCESSIBILITY
-   * ========================================
-   */
-
   const mobile =
     window.matchMedia(
       '(max-width: 767px)'
@@ -72,21 +66,10 @@ export function mountHome({
       '(prefers-reduced-motion: reduce)'
     ).matches;
 
-  /*
-   * Geliştirme sırasında:
-   *
-   * localStorage.setItem(
-   *   'hunnes-motion-force',
-   *   '1'
-   * );
-   *
-   * ile reduced-motion override edilebilir.
-   */
   const forceMotion =
     localStorage.getItem(
       'hunnes-motion-force'
     ) === '1';
-
 
   console.log(
     '[Hunnes Motion] home setup',
@@ -97,15 +80,6 @@ export function mountHome({
     }
   );
 
-
-  /*
-   * Kullanıcı reduced motion tercih etmişse
-   * normal production davranışında
-   * animasyon çalıştırma.
-   *
-   * forceMotion sadece bizim test
-   * override'ımızdır.
-   */
   if (
     reduce &&
     !forceMotion
@@ -117,65 +91,31 @@ export function mountHome({
     return;
   }
 
-
   const profile =
     getProfile(mobile);
 
 
   /*
    * ========================================
-   * DOM DEBUG
+   * INTRO — EDITORIAL
    * ========================================
    */
 
-  console.log(
-    '[Hunnes Motion] home animations registering',
-    {
-      intro:
-        root.querySelectorAll(
-          '.hns-intro-title'
-        ).length,
-
-      training:
-        root.querySelectorAll(
-          '.hns-training-copy'
-        ).length,
-
-      benefits:
-        root.querySelectorAll(
-          '.hns-benefits-content__item'
-        ).length,
-
-      instructor:
-        root.querySelectorAll(
-          '.hns-instructor-content'
-        ).length,
-
-      testimonials:
-        root.querySelectorAll(
-          '.hns-testimonial'
-        ).length,
-
-      cta:
-        root.querySelectorAll(
-          '.hns-product-cta'
-        ).length,
-    }
-  );
-
-
-  /*
-   * ========================================
-   * INTRO
-   * ========================================
-   */
+  const introLabel =
+    root.querySelector(
+      [
+        '.hns-intro-label',
+        '.hns-intro-eyebrow',
+        '.hns-intro-kicker',
+      ].join(',')
+    );
 
   const introTitle =
     root.querySelector(
       '.hns-intro-title'
     );
 
-  const introCopy =
+  const introDescription =
     root.querySelector(
       [
         '.hns-intro-content',
@@ -184,43 +124,40 @@ export function mountHome({
       ].join(',')
     );
 
+  headingMotion({
+    gsap,
+    profile,
+    mobile,
 
-  if (
-    introTitle ||
-    introCopy
-  ) {
-    headingMotion({
-      gsap,
-      profile,
+    label:
+      introLabel,
 
-      title:
-        introTitle,
+    title:
+      introTitle,
 
-      description:
-        introCopy,
+    description:
+      introDescription,
 
-      trigger:
-        introTitle ||
-        introCopy,
-    });
-  }
+    trigger:
+      introTitle ||
+      introDescription,
+  });
 
 
   /*
    * ========================================
-   * 3 VIDEO / TEXT SECTIONS
+   * TRAINING / VIDEO SECTIONS
    * ========================================
    */
 
-  const copies =
+  const trainingCopies =
     Array.from(
       root.querySelectorAll(
         '.hns-training-copy'
       )
     );
 
-
-  copies.forEach(
+  trainingCopies.forEach(
     (copy, index) => {
       const section =
         findAncestor(
@@ -232,27 +169,26 @@ export function mountHome({
             )
         );
 
-
-      /*
-       * Section bulunamazsa yalnızca
-       * metni sade reveal ile çalıştır.
-       */
       if (!section) {
         reveal(
           gsap,
           copy,
-          profile
+          profile,
+          {
+            y:
+              mobile
+                ? 12
+                : 16,
+          }
         );
 
         return;
       }
 
-
       const media =
         section.querySelector(
           'video, iframe'
         );
-
 
       splitMotion({
         gsap,
@@ -283,7 +219,6 @@ export function mountHome({
       '.hns-benefits-content__grid'
     );
 
-
   const benefitItems =
     benefitsGrid
       ? benefitsGrid.querySelectorAll(
@@ -291,8 +226,15 @@ export function mountHome({
         )
       : [];
 
+  const benefitsLabel =
+    root.querySelector(
+      [
+        '.hns-benefits-heading__label',
+        '.hns-benefits-content__label',
+      ].join(',')
+    );
 
-  const benefitTitle =
+  const benefitsTitle =
     root.querySelector(
       [
         '.hns-benefits-content h2',
@@ -300,36 +242,50 @@ export function mountHome({
       ].join(',')
     );
 
+  const benefitsDescription =
+    root.querySelector(
+      [
+        '.hns-benefits-heading p',
+        '.hns-benefits-content > p',
+      ].join(',')
+    );
 
-  if (benefitTitle) {
+  if (
+    benefitsLabel ||
+    benefitsTitle ||
+    benefitsDescription
+  ) {
     headingMotion({
       gsap,
       profile,
+      mobile,
+
+      label:
+        benefitsLabel,
 
       title:
-        benefitTitle,
+        benefitsTitle,
+
+      description:
+        benefitsDescription,
 
       trigger:
-        benefitTitle,
-    });
-  }
-
-
-  if (
-    benefitsGrid &&
-    benefitItems.length
-  ) {
-    cardsMotion({
-      gsap,
-      profile,
-
-      items:
-        benefitItems,
-
-      trigger:
+        benefitsTitle ||
         benefitsGrid,
     });
   }
+
+  cardsMotion({
+    gsap,
+    profile,
+    mobile,
+
+    items:
+      benefitItems,
+
+    trigger:
+      benefitsGrid,
+  });
 
 
   /*
@@ -338,22 +294,19 @@ export function mountHome({
    * ========================================
    */
 
-  const instructorLabel =
-    root.querySelector(
-      '.hns-instructor-content__label'
-    );
-
-
   const instructorContent =
     root.querySelector(
       '.hns-instructor-content'
     );
 
+  const instructorLabel =
+    root.querySelector(
+      '.hns-instructor-content__label'
+    );
 
   const instructorAnchor =
     instructorLabel ||
     instructorContent;
-
 
   if (instructorAnchor) {
     const instructorSection =
@@ -366,12 +319,10 @@ export function mountHome({
           )
       );
 
-
     if (instructorSection) {
       const image =
         instructorSection
           .querySelector('img');
-
 
       const content =
         instructorSection
@@ -379,30 +330,28 @@ export function mountHome({
             '.hns-instructor-content'
           );
 
+      mediaMotion({
+        gsap,
+        profile,
+        mobile,
 
-      if (image) {
-        mediaMotion({
-          gsap,
-          profile,
+        element:
+          image,
 
-          element:
-            image,
+        trigger:
+          instructorSection,
 
-          trigger:
-            instructorSection,
-
-          x:
-            mobile
-              ? 0
-              : -18,
-        });
-      }
-
+        x:
+          mobile
+            ? 0
+            : -14,
+      });
 
       if (content) {
         headingMotion({
           gsap,
           profile,
+          mobile,
 
           label:
             content.querySelector(
@@ -423,23 +372,51 @@ export function mountHome({
             instructorSection,
         });
       }
-    } else {
-      /*
-       * Resimli parent bulunamazsa
-       * içeriğin kendisini yine göster.
-       */
-      reveal(
-        gsap,
-        instructorContent,
-        profile
-      );
     }
   }
 
 
   /*
    * ========================================
-   * TESTIMONIALS
+   * TESTIMONIALS HEADING
+   * ========================================
+   */
+
+  const testimonialHeading =
+    root.querySelector(
+      '.hns-testimonials-heading'
+    );
+
+  if (testimonialHeading) {
+    headingMotion({
+      gsap,
+      profile,
+      mobile,
+
+      label:
+        testimonialHeading.querySelector(
+          '.hns-testimonials-heading__label'
+        ),
+
+      title:
+        testimonialHeading.querySelector(
+          'h2'
+        ),
+
+      description:
+        testimonialHeading.querySelector(
+          'p'
+        ),
+
+      trigger:
+        testimonialHeading,
+    });
+  }
+
+
+  /*
+   * ========================================
+   * TESTIMONIAL CARDS
    * ========================================
    */
 
@@ -448,29 +425,21 @@ export function mountHome({
       '.hns-testimonials__list'
     );
 
-
   if (testimonialList) {
-    const testimonialItems =
-      testimonialList
-        .querySelectorAll(
-          '.hns-testimonial'
-        );
+    testimonialsMotion({
+      gsap,
+      profile,
+      mobile,
 
+      items:
+        testimonialList
+          .querySelectorAll(
+            '.hns-testimonial'
+          ),
 
-    if (
-      testimonialItems.length
-    ) {
-      testimonialsMotion({
-        gsap,
-        profile,
-
-        items:
-          testimonialItems,
-
-        trigger:
-          testimonialList,
-      });
-    }
+      trigger:
+        testimonialList,
+    });
   }
 
 
@@ -485,24 +454,16 @@ export function mountHome({
       '.hns-product-cta'
     );
 
+  ctaMotion({
+    gsap,
+    profile,
+    mobile,
+    element:
+      cta,
+  });
 
-  if (cta) {
-    ctaMotion({
-      gsap,
-      profile,
-      element:
-        cta,
-    });
-  }
-
-
-  /*
-   * ========================================
-   * FINISHED
-   * ========================================
-   */
 
   console.log(
-    '[Hunnes Motion] home registered'
+    '[Hunnes Motion] premium home registered'
   );
 }

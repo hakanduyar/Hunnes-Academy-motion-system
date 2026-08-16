@@ -1,26 +1,68 @@
 import {
-  reveal,
+  createScene,
+  fromState,
+  toState,
 } from './base.js';
 
 export function ctaMotion({
   gsap,
   profile,
+  mobile,
   element,
 }) {
-  return reveal(
+  if (!element) return null;
+
+  const {
+    timeline,
+    initial,
+  } = createScene(
     gsap,
     element,
     profile,
     {
-      y:
-        profile.distance + 4,
-
-      scale: 0.987,
-
-      duration:
-        profile.duration + 0.08,
-
-      start: 'top 90%',
+      start: 'top 91%',
     }
   );
+
+  timeline.fromTo(
+    element,
+
+    fromState(
+      initial,
+      {
+        y:
+          mobile
+            ? 11
+            : 15,
+
+        scale:
+          mobile
+            ? 0.997
+            : 0.993,
+      }
+    ),
+
+    toState(
+      initial,
+      {
+        y: 0,
+        scale: 1,
+
+        duration:
+          mobile
+            ? 0.48
+            : 0.62,
+
+        ease:
+          'power3.out',
+
+        clearProps:
+          'transform,opacity,visibility',
+      }
+    ),
+
+    0
+  );
+
+  return timeline;
 }

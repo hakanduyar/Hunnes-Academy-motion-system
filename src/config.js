@@ -1,6 +1,6 @@
 export const CONFIG = {
-version: '0.2.3',
-  debug: true,
+version: '0.3.0',
+      debug: true,
 
   selectors: {
     root: 'main,[role="main"]',
