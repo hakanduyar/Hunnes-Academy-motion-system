@@ -54,6 +54,40 @@ export function mountHome({
   root,
   gsap,
 }) {
+    console.log(
+  '[Hunnes Motion] home DOM ready',
+  {
+    intro:
+      root.querySelectorAll(
+        '.hns-intro-title'
+      ).length,
+
+    training:
+      root.querySelectorAll(
+        '.hns-training-copy'
+      ).length,
+
+    benefits:
+      root.querySelectorAll(
+        '.hns-benefits-content__item'
+      ).length,
+
+    instructor:
+      root.querySelectorAll(
+        '.hns-instructor-content'
+      ).length,
+
+    testimonials:
+      root.querySelectorAll(
+        '.hns-testimonial'
+      ).length,
+
+    cta:
+      root.querySelectorAll(
+        '.hns-product-cta'
+      ).length,
+  }
+);
   const mm =
     gsap.matchMedia();
 

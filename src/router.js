@@ -4,122 +4,259 @@ import {
   log,
 } from './core.js';
 
-const READY_SELECTORS = {
-  home: '.hns-intro-title',
-  education: '.hunnes-edu-hero',
+const PAGE_READY = {
+  home() {
+    return (
+      document.querySelectorAll(
+        '.hns-intro-title'
+      ).length >= 1 &&
+
+      document.querySelectorAll(
+        '.hns-training-copy'
+      ).length >= 3 &&
+
+      document.querySelectorAll(
+        '.hns-benefits-content__item'
+      ).length >= 4 &&
+
+      document.querySelectorAll(
+        '.hns-instructor-content'
+      ).length >= 1 &&
+
+      document.querySelectorAll(
+        '.hns-testimonial'
+      ).length >= 4 &&
+
+      document.querySelectorAll(
+        '.hns-product-cta'
+      ).length >= 1
+    );
+  },
+
+  education() {
+    return (
+      document.querySelector(
+        '.hunnes-edu-hero'
+      ) !== null
+    );
+  },
 };
 
 export function createRouter(onRoute) {
-  let timer = null;
-  let readinessTimer = null;
+  let routeTimer = null;
+  let readyTimer = null;
+
   let mountedHref = '';
 
-  function waitForPageReady(
+  /*
+   * Aynı DOM'un birkaç kontrol boyunca
+   * sabit kaldığını doğruluyoruz.
+   */
+  function getPageSignature(page) {
+    if (page === 'home') {
+      return [
+        document.querySelector(
+          '.hns-intro-title'
+        ),
+
+        ...document.querySelectorAll(
+          '.hns-training-copy'
+        ),
+
+        ...document.querySelectorAll(
+          '.hns-benefits-content__item'
+        ),
+
+        document.querySelector(
+          '.hns-instructor-content'
+        ),
+
+        ...document.querySelectorAll(
+          '.hns-testimonial'
+        ),
+
+        document.querySelector(
+          '.hns-product-cta'
+        ),
+      ];
+    }
+
+    if (page === 'education') {
+      return [
+        document.querySelector(
+          '.hunnes-edu-hero'
+        ),
+      ];
+    }
+
+    return [];
+  }
+
+  function sameSignature(a, b) {
+    if (!a || !b) return false;
+
+    if (a.length !== b.length) {
+      return false;
+    }
+
+    return a.every(
+      (node, index) =>
+        node === b[index]
+    );
+  }
+
+  function waitForStablePage(
     page,
-    callback,
-    attempt = 0
+    callback
   ) {
-    clearTimeout(readinessTimer);
+    clearTimeout(readyTimer);
 
-    const selector =
-      READY_SELECTORS[page];
+    const readyCheck =
+      PAGE_READY[page];
 
     /*
-     * Henüz özel selector tanımlamadığımız
-     * sayfalarda beklemiyoruz.
+     * Henüz özel readiness tanımlamadığımız
+     * sayfalarda direkt devam et.
      */
-    if (!selector) {
+    if (!readyCheck) {
       callback();
       return;
     }
 
-    const element =
-      document.querySelector(selector);
+    let attempts = 0;
+    let stableChecks = 0;
+    let previousSignature = null;
 
-    if (element) {
-      callback();
-      return;
-    }
+    function check() {
+      attempts += 1;
 
-    /*
-     * Maksimum yaklaşık 4 saniye bekle.
-     */
-    if (attempt >= 80) {
-      log(
-        'page ready timeout',
-        {
-          page,
-          selector,
+      if (!readyCheck()) {
+        stableChecks = 0;
+        previousSignature = null;
+
+        if (attempts >= 100) {
+          log(
+            'page ready timeout',
+            { page }
+          );
+
+          callback();
+          return;
         }
-      );
 
-      callback();
-      return;
+        readyTimer =
+          setTimeout(check, 50);
+
+        return;
+      }
+
+      const signature =
+        getPageSignature(page);
+
+      if (
+        sameSignature(
+          signature,
+          previousSignature
+        )
+      ) {
+        stableChecks += 1;
+      } else {
+        stableChecks = 0;
+      }
+
+      previousSignature =
+        signature;
+
+      /*
+       * 4 ardışık kontrolde aynı DOM.
+       * 50ms x 4 ≈ 200ms stabilite.
+       */
+      if (stableChecks >= 4) {
+        log(
+          'page stable',
+          {
+            page,
+            attempts,
+          }
+        );
+
+        callback();
+        return;
+      }
+
+      if (attempts >= 100) {
+        log(
+          'page stability timeout',
+          { page }
+        );
+
+        callback();
+        return;
+      }
+
+      readyTimer =
+        setTimeout(check, 50);
     }
 
-    readinessTimer =
-      setTimeout(() => {
-        waitForPageReady(
-          page,
-          callback,
-          attempt + 1
-        );
-      }, 50);
+    check();
   }
 
   function emit(reason) {
-    clearTimeout(timer);
-    clearTimeout(readinessTimer);
+    clearTimeout(routeTimer);
+    clearTimeout(readyTimer);
 
-    timer = setTimeout(() => {
-      const page = getPageId();
+    routeTimer =
+      setTimeout(() => {
+        const page =
+          getPageId();
 
-      waitForPageReady(
-        page,
-        () => {
-          const root = getRoot();
+        waitForStablePage(
+          page,
+          () => {
+            const root =
+              getRoot();
 
-          if (!root) {
-            emit(`${reason}:wait-root`);
-            return;
+            if (!root) {
+              emit(
+                `${reason}:wait-root`
+              );
+
+              return;
+            }
+
+            mountedHref =
+              location.href;
+
+            log('route', {
+              page,
+              reason,
+              path:
+                location.pathname,
+            });
+
+            onRoute({
+              page,
+              root,
+              reason,
+            });
           }
-
-          mountedHref =
-            location.href;
-
-          log('route', {
-            page,
-            reason,
-            path:
-              location.pathname,
-          });
-
-          onRoute({
-            page,
-            root,
-            reason,
-          });
-        }
-      );
-    }, 80);
+        );
+      }, 60);
   }
 
   function changed(reason) {
     emit(reason);
 
-    /*
-     * ikas SPA geçişlerinde ikinci
-     * güvenlik kontrolü.
-     */
     setTimeout(() => {
       if (
-        location.href !== mountedHref
+        location.href !==
+        mountedHref
       ) {
         emit(
           `${reason}:settle`
         );
       }
-    }, 450);
+    }, 500);
   }
 
   [
@@ -202,7 +339,7 @@ export function createRouter(onRoute) {
           ) {
             emit('link');
           }
-        }, 160);
+        }, 180);
       } catch {
         /* ignore */
       }
@@ -213,7 +350,7 @@ export function createRouter(onRoute) {
   emit('initial');
 
   return function destroyRouter() {
-    clearTimeout(timer);
-    clearTimeout(readinessTimer);
+    clearTimeout(routeTimer);
+    clearTimeout(readyTimer);
   };
 }
