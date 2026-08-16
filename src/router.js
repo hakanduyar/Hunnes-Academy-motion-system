@@ -6,31 +6,22 @@ import {
 
 export function createRouter(onRoute) {
   let timer = null;
-
   let mountedHref = '';
-  let mountedRoot = null;
 
-  let routePending = false;
-
-  function schedule(reason) {
+  function emit(reason) {
     clearTimeout(timer);
-
-    routePending = true;
 
     timer = setTimeout(() => {
       const root = getRoot();
 
       if (!root) {
-        schedule(`${reason}:wait-root`);
+        emit(`${reason}:wait`);
         return;
       }
 
-      const href = location.href;
-      const page = getPageId();
+      mountedHref = location.href;
 
-      mountedHref = href;
-      mountedRoot = root;
-      routePending = false;
+      const page = getPageId();
 
       log('route', {
         page,
@@ -46,84 +37,66 @@ export function createRouter(onRoute) {
     }, 120);
   }
 
-  function routeChange(reason) {
-    routePending = true;
-
-    schedule(reason);
+  function changed(reason) {
+    emit(reason);
 
     /*
-     * ikas URL'yi değiştirip yeni DOM'u
-     * biraz sonra oluşturursa tekrar kontrol et.
+     * ikas DOM'u URL'den biraz sonra
+     * değiştirirse ikinci kontrol.
      */
     setTimeout(() => {
-      if (
-        location.href !== mountedHref ||
-        getRoot() !== mountedRoot
-      ) {
-        schedule(`${reason}:settle`);
+      if (location.href !== mountedHref) {
+        emit(`${reason}:settle`);
       }
     }, 350);
   }
 
-  ['pushState', 'replaceState']
-    .forEach((method) => {
-      const original = history[method];
+  ['pushState', 'replaceState'].forEach((method) => {
+    const original = history[method];
 
-      history[method] = function (...args) {
-        const result =
-          original.apply(this, args);
+    history[method] = function (...args) {
+      const result = original.apply(this, args);
 
-        routeChange(method);
+      changed(method);
 
-        return result;
-      };
-    });
+      return result;
+    };
+  });
 
-  window.addEventListener(
-    'popstate',
-    () => {
-      routeChange('popstate');
-    }
-  );
+  window.addEventListener('popstate', () => {
+    changed('popstate');
+  });
 
   document.addEventListener(
     'click',
     (event) => {
-      const link =
-        event.target.closest?.('a[href]');
+      const link = event.target.closest?.('a[href]');
 
       if (!link) return;
       if (link.target === '_blank') return;
       if (link.hasAttribute('download')) return;
 
       try {
-        const url = new URL(
-          link.href,
-          location.href
-        );
+        const url = new URL(link.href, location.href);
 
-        if (
-          url.origin !== location.origin
-        ) {
-          return;
-        }
+        if (url.origin !== location.origin) return;
+        if (url.href === location.href) return;
 
-        if (
-          url.href === location.href
-        ) {
-          return;
-        }
-
-        routePending = true;
+        /*
+         * ikas link tıklamasından sonra
+         * URL/DOM'u değiştirsin, sonra kontrol et.
+         */
+        setTimeout(() => {
+          if (location.href !== mountedHref) {
+            emit('link');
+          }
+        }, 160);
 
         setTimeout(() => {
-          if (
-            location.href !== mountedHref ||
-            getRoot() !== mountedRoot
-          ) {
-            schedule('link');
+          if (location.href !== mountedHref) {
+            emit('link:settle');
           }
-        }, 100);
+        }, 450);
       } catch {
         /* ignore */
       }
@@ -131,31 +104,9 @@ export function createRouter(onRoute) {
     true
   );
 
-  const observer =
-    new MutationObserver(() => {
-      const root = getRoot();
-
-      if (
-        routePending ||
-        location.href !== mountedHref ||
-        root !== mountedRoot
-      ) {
-        schedule('dom');
-      }
-    });
-
-  observer.observe(
-    document.documentElement,
-    {
-      childList: true,
-      subtree: true,
-    }
-  );
-
-  schedule('initial');
+  emit('initial');
 
   return function destroyRouter() {
     clearTimeout(timer);
-    observer.disconnect();
   };
 }

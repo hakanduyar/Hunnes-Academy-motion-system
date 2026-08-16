@@ -54,16 +54,14 @@ function mountRoute({
   context = gsap.context(() => {
     if (!mount) return;
 
-    const cleanupFunction = mount({
+    const result = mount({
       root,
       gsap,
       ScrollTrigger,
     });
 
-    if (
-      typeof cleanupFunction === 'function'
-    ) {
-      pageCleanup = cleanupFunction;
+    if (typeof result === 'function') {
+      pageCleanup = result;
     }
   }, root);
 
@@ -83,39 +81,46 @@ function mountRoute({
   refresh();
 }
 
+function debug() {
+  return {
+    version: CONFIG.version,
+    status: 'running',
+    page: currentPage,
+    path: location.pathname,
+    triggers: ScrollTrigger.getAll().length,
+  };
+}
+
+/*
+ * GLOBAL API ROUTER'DAN ÖNCE OLUŞUYOR.
+ */
+window.HunnesMotion = {
+  version: CONFIG.version,
+
+  get page() {
+    return currentPage;
+  },
+
+  refresh,
+  debug,
+};
+
+window.HunnesMotionSystem = {
+  version: CONFIG.version,
+  status: 'booting',
+  page: null,
+  gsap: gsap.version,
+};
+
 function start() {
   if (destroyRouter) return;
 
   destroyRouter =
     createRouter(mountRoute);
 
-  window.HunnesMotion = {
-    version: CONFIG.version,
-
-    get page() {
-      return currentPage;
-    },
-
-    refresh,
-
-    debug() {
-      return {
-        version: CONFIG.version,
-        page: currentPage,
-        path: location.pathname,
-        triggers:
-          ScrollTrigger.getAll().length,
-      };
-    },
-  };
-
   log('system ready');
 }
 
-/*
- * Kritik:
- * document.body oluşmadan router başlatma.
- */
 if (document.readyState === 'loading') {
   document.addEventListener(
     'DOMContentLoaded',
