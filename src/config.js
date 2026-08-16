@@ -1,5 +1,5 @@
 export const CONFIG = {
-version: '0.2.2',
+version: '0.2.3',
   debug: true,
 
   selectors: {
