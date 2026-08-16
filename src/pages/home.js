@@ -75,9 +75,12 @@ export function mountHome({
         reduce,
       } = context.conditions;
 
-      if (reduce) {
-        return;
-      }
+      const forceMotion =
+  localStorage.getItem('hunnes-motion-force') === '1';
+
+if (reduce && !forceMotion) {
+  return;
+}
 
       const profile =
         getProfile(mobile);
